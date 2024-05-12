@@ -3,6 +3,7 @@
  * @author Ayman Nadeem <aymannadeem@github.com>
  * @author Max Brunsfeld <maxbrunsfeld@gmail.com>
  * @author Amaan Qureshi <amaanq12@gmail.com>
+ * @author Nanashi Li <nanashili@auroraeditor.com>
  * @license MIT
  */
 
@@ -385,7 +386,11 @@ module.exports = grammar({
 
     dimensions_expr: $ => seq(repeat($._annotation), '[', $.expression, ']'),
 
-    parenthesized_expression: $ => seq('(', $.expression, ')'),
+    parenthesized_expression: $ => prec(PREC.PARENS, seq(
+      '(',
+      $.expression,
+      ')',
+    )),
 
     class_literal: $ => prec.dynamic(PREC.CLASS_LITERAL, seq($._unannotated_type, '.', 'class')),
 
@@ -905,9 +910,9 @@ module.exports = grammar({
       'non-sealed',
     )),
 
-    type_parameters: $ => seq(
+    type_parameters: $ => prec(PREC.GENERIC, seq(
       '<', commaSep1($.type_parameter), '>',
-    ),
+    )),
 
     type_parameter: $ => seq(
       repeat($._annotation),
@@ -1284,6 +1289,7 @@ module.exports = grammar({
     super: _ => 'super',
 
     // https://docs.oracle.com/javase/specs/jls/se8/html/jls-3.html#jls-IdentifierChars
+    // @ts-ignore
     identifier: _ => /[\p{XID_Start}_$][\p{XID_Continue}\u00A2_$]*/,
 
     // http://stackoverflow.com/questions/13014947/regex-to-match-a-c-style-multiline-comment/36328890#36328890
@@ -1297,8 +1303,11 @@ module.exports = grammar({
     block_comment: _ => token(prec(PREC.COMMENT,
       seq(
         '/*',
-        /[^*]*\*+([^/*][^*]*\*+)*/,
-        '/',
+        repeat(choice(
+          /[^*]/,
+          /\*[^/]/,
+        )),
+        '*/',
       ),
     )),
   },
@@ -1327,7 +1336,7 @@ function sep1(rule, separator) {
  *
  */
 function commaSep1(rule) {
-  return seq(rule, repeat(seq(',', rule)));
+  return seq(rule, repeat(seq(',', rule)), optional(','));
 }
 
 /**
